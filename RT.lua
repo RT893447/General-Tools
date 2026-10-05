@@ -1,9 +1,13 @@
 local Players=game:GetService("Players")local UIS=game:GetService("UserInputService")local RS=game:GetService("RunService")local TS=game:GetService("TweenService")local WS=game:GetService("Workspace")local HS=game:GetService("HttpService")local Stats=game:GetService("Stats")local LT=game:GetService("Lighting")
 local LP=Players.LocalPlayer local Cam=WS.CurrentCamera
 local S={fly=false,flySpeed=60,flyUp=false,flyDown=false,speedOn=false,walk=16,jumpOn=false,jp=50,noclip=false,aim=false,aimPart="Head",aimFov=90,aimDist=500,aimSmooth=60,aimTeam=true,aimCircle=true,aimTargetMode="all",aimPriority="crosshair",aimWall=false,aimStick=30,aimHL=false,aimLaser=false,esp=false,espHL=false,espBox=false,espSkel=false,espTracer=false,espName=false,espDist=false,espHPNum=false,espTool=false,espMax=300,espTarget="all",espYOff=0,espTeamColor=true,radar=false,radarRange=200,radarSize=140,entList=false,hurtFlash=false,showFps=true,lowHPWarn=false,lowHPThreshold=30,fullbright=false}
+-- [新增] 新功能字段 + 仇恨标记清理
+S.noRecoil=false S.recoilStrength=100 S.aggro=false S.aggroRange=200 S.aggroFov=40 S.rapidFire=false S.rapidFireDelay=0.05
+local aggroMarks={}
+local function clrAggro()for m,b in pairs(aggroMarks)do pcall(function()b:Destroy()end)end aggroMarks={}end
 local flyG,flyV,flyC=nil,nil,nil local espO,humans,aimT={},{},nil
 local origG=WS.Gravity local oJP,oJH,oUJP=nil,nil,nil
-local lastHP,hurtT=nil,nil local radarD,entF=nil,nil
+local lastHP,hurtT=nil,nil local radarD,entF={},nil
 local oL={LT.Brightness,LT.ClockTime,LT.Ambient,LT.OutdoorAmbient,LT.FogEnd,LT.FogStart,LT.GlobalShadows,LT.ShadowSoftness}
 local tRefs,sRefs,gRefs={},{},{}
 local function isSelf(m)if not m then return false end if m==LP.Character then return true end return Players:GetPlayerFromCharacter(m)==LP end
@@ -108,6 +112,109 @@ local function fBT()local c=WS.CurrentCamera local ch=LP.Character local hr=ch a
 local function sFly()local ch=LP.Character local hr=ch and ch:FindFirstChild("HumanoidRootPart")if not hr then return end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=false end end flyG=Instance.new("BodyGyro")flyG.P=9e4 flyG.MaxTorque=Vector3.new(9e9,9e9,9e9)flyG.CFrame=hr.CFrame flyG.Parent=hr flyV=Instance.new("BodyVelocity")flyV.MaxForce=Vector3.new(9e9,9e9,9e9)flyV.Velocity=Vector3.zero flyV.Parent=hr flyC=RS.RenderStepped:Connect(function()if not S.fly then return end local c=LP.Character local mh=c and c:FindFirstChild("HumanoidRootPart")local h=c and c:FindFirstChildOfClass("Humanoid")if not mh or not flyG or not flyV then return end local cm=WS.CurrentCamera flyG.CFrame=cm.CFrame local mv=Vector3.zero if h and h.MoveDirection.Magnitude>0.05 then local md=h.MoveDirection local cl=cm.CFrame.LookVector local fl=Vector3.new(cl.X,0,cl.Z)if fl.Magnitude>0.01 then fl=fl.Unit local fr=Vector3.new(fl.Z,0,-fl.X)local fw=md:Dot(fl)local rt=md:Dot(fr)mv=cm.CFrame.LookVector*fw+cm.CFrame.RightVector*rt end end if S.flyUp then mv=mv+cm.CFrame.UpVector end if S.flyDown then mv=mv-cm.CFrame.UpVector end if mv.Magnitude>0.05 then flyV.Velocity=mv.Unit*S.flySpeed else flyV.Velocity=Vector3.zero end end)end
 local function stFly()if flyC then flyC:Disconnect()flyC=nil end if flyG then flyG:Destroy()flyG=nil end if flyV then flyV:Destroy()flyV=nil end local ch=LP.Character if ch then for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end end
 RS:BindToRenderStep("GT_Aim",201,function()if not S.aim then aimT=nil return end local c=WS.CurrentCamera if not c then return end if aimT then local h=aimT:FindFirstChildOfClass("Humanoid")if not h or h.Health<=0 or not aimT.Parent or isSelf(aimT)then aimT=nil end end if not(S.aimPriority=="lock"and aimT)then aimT=fBT()end if not aimT then return end local tp=gAP(aimT)if not tp then return end local tc=CFrame.new(c.CFrame.Position,tp.Position)if S.aimSmooth>=100 then c.CFrame=tc else c.CFrame=c.CFrame:Lerp(tc,math.clamp(S.aimSmooth/100,0.05,1))end end)
+-- [新增] ===== 无后坐力 =====
+local lastRecoilCF=nil
+RS:BindToRenderStep("GT_NoRecoil",202,function()
+    if not S.noRecoil or S.aim then lastRecoilCF=nil return end
+    local cam=WS.CurrentCamera
+    if not cam then lastRecoilCF=nil return end
+    local mdMag=UIS:GetMouseDelta().Magnitude
+    if lastRecoilCF then
+        if mdMag<0.5 then
+            local cur=cam.CFrame
+            local lastLook=lastRecoilCF.LookVector
+            if (cur.LookVector-lastLook).Magnitude>0.003 then
+                local str=math.clamp(S.recoilStrength/100,0,1)
+                local target=CFrame.new(cur.Position,cur.Position+lastLook)
+                cam.CFrame=cur:Lerp(target,str)
+            end
+        end
+    end
+    lastRecoilCF=cam.CFrame
+end)
+-- [新增] ===== 仇恨指示 =====
+spawn(function()
+    while sg.Parent do
+        if not S.aggro then
+            if next(aggroMarks) then clrAggro() end
+            task.wait(0.4)
+        else
+            local ch=LP.Character
+            local hr=ch and ch:FindFirstChild("HumanoidRootPart")
+            if hr then
+                local mp=hr.Position
+                for h in pairs(humans) do
+                    if h and h.Parent and h.Health>0 then
+                        local m=h.Parent
+                        if m:IsA("Model") and not isSelf(m) then
+                            local t=m:FindFirstChild("HumanoidRootPart")
+                            local head=m:FindFirstChild("Head") or t
+                            if t and head then
+                                local ds=(t.Position-mp).Magnitude
+                                local watching=false
+                                if ds<=S.aggroRange then
+                                    local toMe=mp-head.Position
+                                    if toMe.Magnitude>0.5 then
+                                        local ang=math.deg(math.acos(math.clamp(head.CFrame.LookVector:Dot(toMe.Unit),-1,1)))
+                                        if ang<=S.aggroFov then watching=true end
+                                    end
+                                end
+                                if watching then
+                                    if not aggroMarks[m] then
+                                        local bb=Instance.new("BillboardGui")
+                                        bb.Adornee=head
+                                        bb.Size=UDim2.new(0,36,0,36)
+                                        bb.StudsOffset=Vector3.new(0,2.4,0)
+                                        bb.AlwaysOnTop=true
+                                        bb.MaxDistance=S.aggroRange*2
+                                        bb.Parent=sg
+                                        local lbl=Instance.new("TextLabel")
+                                        lbl.Size=UDim2.new(1,0,1,0)
+                                        lbl.BackgroundTransparency=1
+                                        lbl.Text="!"
+                                        lbl.TextSize=30
+                                        lbl.TextColor3=C.rd
+                                        lbl.TextStrokeTransparency=0
+                                        lbl.TextStrokeColor3=Color3.new(0,0,0)
+                                        lbl.Font=Enum.Font.GothamBold
+                                        lbl.Parent=bb
+                                        aggroMarks[m]=bb
+                                    else
+                                        local lbl=aggroMarks[m]:FindFirstChildOfClass("TextLabel")
+                                        if lbl then lbl.TextTransparency=(math.sin(tick()*8)+1)/2*0.3 end
+                                    end
+                                else
+                                    if aggroMarks[m] then aggroMarks[m]:Destroy() aggroMarks[m]=nil end
+                                end
+                            end
+                        end
+                    end
+                end
+                for m,b in pairs(aggroMarks) do
+                    if not m.Parent or not m:FindFirstChildOfClass("Humanoid") then
+                        b:Destroy() aggroMarks[m]=nil
+                    end
+                end
+            end
+            task.wait(0.08)
+        end
+    end
+end)
+-- [新增] ===== 快速开火 =====
+spawn(function()
+    while sg.Parent do
+        if S.rapidFire then
+            local ch=LP.Character
+            local tool=ch and ch:FindFirstChildOfClass("Tool")
+            if tool then
+                pcall(function() tool:Activate() end)
+            end
+            task.wait(math.max(0.01,S.rapidFireDelay))
+        else
+            task.wait(0.1)
+        end
+    end
+end)
 local function capJP(h)if not oJP then oJP=h.JumpPower oJH=h.JumpHeight oUJP=h.UseJumpPower end end
 RS.Heartbeat:Connect(function()local ch=LP.Character local h=ch and ch:FindFirstChildOfClass("Humanoid")if not h then return end capJP(h)if S.speedOn and h.WalkSpeed~=S.walk then h.WalkSpeed=S.walk end if S.jumpOn then local th=S.jp/7.85 if h.JumpPower~=S.jp then h.JumpPower=S.jp end if h.JumpHeight~=th then h.JumpHeight=th end if h.UseJumpPower~=true then h.UseJumpPower=true end end end)
 local function hookH(h)capJP(h)h:GetPropertyChangedSignal("WalkSpeed"):Connect(function()if S.speedOn and h.WalkSpeed~=S.walk then h.WalkSpeed=S.walk end end)h:GetPropertyChangedSignal("JumpPower"):Connect(function()if S.jumpOn and h.JumpPower~=S.jp then h.JumpPower=S.jp end end)h:GetPropertyChangedSignal("JumpHeight"):Connect(function()if S.jumpOn then local t=S.jp/7.85 if h.JumpHeight~=t then h.JumpHeight=t end end end)h:GetPropertyChangedSignal("UseJumpPower"):Connect(function()if S.jumpOn and h.UseJumpPower~=true then h.UseJumpPower=true end end)end
@@ -189,11 +296,27 @@ mkSec(aiC,"瞄准部位",C.rd)
 mkTog(aiC,"锁定头部",function()return S.aimPart=="Head"end,function(v)if v then S.aimPart="Head"end end,C.rd)
 mkTog(aiC,"锁定躯干",function()return S.aimPart=="Torso"end,function(v)if v then S.aimPart="Torso"end end,C.rd)
 mkTog(aiC,"锁定根部件",function()return S.aimPart=="HumanoidRootPart"end,function(v)if v then S.aimPart="HumanoidRootPart"end end,C.rd)
+-- [新增] 射击辅助 / 镜头稳定 / 仇恨指示
+mkSec(aiC,"射击辅助",C.rd)
+mkTog(aiC,"快速开火",function()return S.rapidFire end,function(v)S.rapidFire=v end,C.rd)
+mkSld(aiC,"开火间隔(ms)",function()return math.floor(S.rapidFireDelay*1000)end,function(v)S.rapidFireDelay=v/1000 end,10,500,10,C.rd)
+mkSec(aiC,"镜头稳定",C.rd)
+mkTog(aiC,"无后坐力",function()return S.noRecoil end,function(v)S.noRecoil=v end,C.rd)
+mkSld(aiC,"抵消强度%",function()return S.recoilStrength end,function(v)S.recoilStrength=v end,0,100,5,C.rd)
+mkSec(aiC,"仇恨指示",C.rd)
+mkTog(aiC,"启用仇恨指示",function()return S.aggro end,function(v)S.aggro=v if not v then clrAggro()end end,C.rd)
+mkSld(aiC,"检测范围",function()return S.aggroRange end,function(v)S.aggroRange=v end,50,500,25,C.rd)
+mkSld(aiC,"视野阈值°",function()return S.aggroFov end,function(v)S.aggroFov=v end,10,90,5,C.rd)
 local hdC=mkCard(tSt)mkSec(hdC,"界面HUD",C.gold)
 mkTog(hdC,"FPS/Ping监控",function()return S.showFps end,function(v)S.showFps=v end,C.gold)
 mkSec(hdC,"配置存档",C.gold)
 mkAct(hdC,"保存当前配置",function()local ok=saveC()if ok then toast("配置已保存",true)else toast("保存失败",false)end end,C.gold)
 mkAct(hdC,"加载上次配置",function()local ok=loadC()if ok then toast("配置已加载",true)else toast("加载失败",false)end end,C.gold)
-closeB.MouseButton1Click:Connect(function()S.fly=false S.speedOn=false S.jumpOn=false S.noclip=false S.aim=false S.esp=false S.radar=false S.entList=false S.hurtFlash=false S.aimLaser=false S.lowHPWarn=false S.fullbright=false pcall(stFly)pcall(setFB,false)ll.Visible=false lt2.Visible=false WS.Gravity=origG for m,_ in pairs(espO)do pcall(rmE,m)end pcall(function()RS:UnbindFromRenderStep("GT_Aim")end)local ch=LP.Character if ch then local h=ch:FindFirstChildOfClass("Humanoid")if h then if oJP then h.JumpPower=oJP end if oJH then h.JumpHeight=oJH end if oUJP~=nil then h.UseJumpPower=oUJP end h.WalkSpeed=16 end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end sg:Destroy()tg:Destroy()end)
+closeB.MouseButton1Click:Connect(function()S.fly=false S.speedOn=false S.jumpOn=false S.noclip=false S.aim=false S.esp=false S.radar=false S.entList=false S.hurtFlash=false S.aimLaser=false S.lowHPWarn=false S.fullbright=false
+-- [新增] 回滚新功能
+S.noRecoil=false S.aggro=false S.rapidFire=false
+pcall(clrAggro)
+pcall(function() RS:UnbindFromRenderStep("GT_NoRecoil") end)
+pcall(stFly)pcall(setFB,false)ll.Visible=false lt2.Visible=false WS.Gravity=origG for m,_ in pairs(espO)do pcall(rmE,m)end pcall(function()RS:UnbindFromRenderStep("GT_Aim")end)local ch=LP.Character if ch then local h=ch:FindFirstChildOfClass("Humanoid")if h then if oJP then h.JumpPower=oJP end if oJH then h.JumpHeight=oJH end if oUJP~=nil then h.UseJumpPower=oUJP end h.WalkSpeed=16 end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end sg:Destroy()tg:Destroy()end)
 LP.CharacterAdded:Connect(function()wait(0.5)if S.esp then rfE()end end)
 spawn(function()wait(0.1)TS:Create(cg,TweenInfo.new(0.7,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,520,0,520)}):Play()TS:Create(cg,TweenInfo.new(0.7),{BackgroundTransparency=0.85}):Play()TS:Create(bg,TweenInfo.new(1.0,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,900,0,900)}):Play()TS:Create(bg,TweenInfo.new(1.0),{BackgroundTransparency=0.9}):Play()TS:Create(ci,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextTransparency=0,TextStrokeTransparency=0}):Play()TS:Create(ro,TweenInfo.new(0.6,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,200,0,200)}):Play()TS:Create(ri,TweenInfo.new(0.8,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,140,0,140)}):Play()for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=0}):Play()end local sa,so,ps=0,0,tick()spawn(function()while io.Parent and ro.Parent and not iDone do sa=sa+3 so=so+5 ro.Rotation=sa ri.Rotation=-sa*1.4 for i,d in ipairs(sd)do local an=math.rad(so+(i-1)*90)local rd=95 d.Position=UDim2.new(0.5,math.cos(an)*rd,0.5,-20+math.sin(an)*rd)end local el=tick()-ps ci.TextSize=80*(1+math.sin(el*4)*0.08)wait(0.016)end end)wait(0.5)for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.75,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=e.basePos,Rotation=0,TextTransparency=0,TextStrokeTransparency=0}):Play()wait(0.09)end wait(1.0)local sw=Instance.new("Frame")sw.Size=UDim2.new(0,100,0,140)sw.AnchorPoint=Vector2.new(0.5,0.5)sw.Position=UDim2.new(0,-150,0.5,60)sw.BackgroundColor3=Color3.new(1,1,1)sw.BackgroundTransparency=0.15 sw.BorderSizePixel=0 sw.ZIndex=10 sw.Parent=io cnr(sw,40)local swg=Instance.new("UIGradient")swg.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0),NumberSequenceKeypoint.new(1,1)})swg.Parent=sw TS:Create(sw,TweenInfo.new(0.9,Enum.EasingStyle.Quad,Enum.EasingDirection.InOut),{Position=UDim2.new(1,150,0.5,60)}):Play()wait(0.45)for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.15),{TextSize=e.label.TextSize+14,TextColor3=Color3.new(1,1,1)}):Play()wait(0.05)end wait(0.35)for _,e in ipairs(tl)do local os2=e.label.TextSize TS:Create(e.label,TweenInfo.new(0.3,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextSize=os2,TextColor3=Color3.fromRGB(230,250,255)}):Play()end wait(0.6)sw:Destroy()iDone=true for _,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.4),{TextTransparency=1,TextStrokeTransparency=1}):Play()end TS:Create(ci,TweenInfo.new(0.4),{TextTransparency=1}):Play()TS:Create(ros,TweenInfo.new(0.4),{Transparency=1}):Play()TS:Create(ris,TweenInfo.new(0.4),{Transparency=1}):Play()TS:Create(cg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()TS:Create(bg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()end TS:Create(io,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()wait(0.5)pan.Visible=true pan.Size=UDim2.new(0,0,0,0)pan.Position=UDim2.new(0.5,0,0.5,0)TS:Create(pan,TweenInfo.new(0.55,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,ph),Position=UDim2.new(0.5,-pw/2,0.5,-ph/2)}):Play()wait(0.6)io:Destroy()end)
