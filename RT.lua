@@ -4,7 +4,6 @@ local Players=game:GetService("Players")local UIS=game:GetService("UserInputServ
 local LP=Players.LocalPlayer local Cam=WS.CurrentCamera
 local S={fly=false,flySpeed=60,flyUp=false,flyDown=false,speedOn=false,walk=16,jumpOn=false,jp=50,noclip=false,aim=false,aimPart="Head",aimFov=90,aimDist=500,aimSmooth=60,aimTeam=true,aimCircle=true,aimTargetMode="all",aimPriority="crosshair",aimWall=false,aimStick=30,aimHL=false,aimLaser=false,esp=false,espHL=false,espBox=false,espSkel=false,espTracer=false,espName=false,espDist=false,espHPNum=false,espTool=false,espMax=300,espTarget="all",espYOff=0,espTeamColor=true,radar=false,radarRange=200,radarSize=140,entList=false,hurtFlash=false,showFps=true,lowHPWarn=false,lowHPThreshold=30,fullbright=false}
 S.aggro=false S.aggroRange=200 S.aggroFov=40
-S.fpsBoost=false S.fpsLevel=2
 S.protectGUI=true
 S.bhop=false
 S.uiOpacity=100
@@ -141,77 +140,6 @@ UIS.InputChanged:Connect(function(i)if pD and(i.UserInputType==Enum.UserInputTyp
 UIS.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then pD=false end end)
 local cld=false
 minB.MouseButton1Click:Connect(function()cld=not cld if cld then tBar.Visible=false cA.Visible=false TS:Create(pan,TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,60)}):Play()minB.Text="+"else tBar.Visible=true cA.Visible=true TS:Create(pan,TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,ph)}):Play()minB.Text="−"end end)
-local fpsOrig={shadow=LT.GlobalShadows,fogEnd=LT.FogEnd,fogStart=LT.FogStart,envDiff=LT.EnvironmentDiffuseScale,envSpec=LT.EnvironmentSpecularScale}
-local fpsPostFX={}
-for _,v in ipairs(LT:GetChildren())do
-    if v:IsA("PostEffect")then
-        table.insert(fpsPostFX,{fx=v,en=v.Enabled})
-    end
-end
-local fpsAtmo={}
-for _,v in ipairs(LT:GetChildren())do
-    if v:IsA("Atmosphere")then
-        table.insert(fpsAtmo,{obj=v,den=v.Density})
-    end
-end
-local waterOrig={}
-pcall(function()
-    local ter=WS:FindFirstChildOfClass("Terrain")
-    if ter then
-        waterOrig.wave=ter.WaterWaveSize
-        waterOrig.reflect=ter.WaterReflectance
-        waterOrig.trans=ter.WaterTransparency
-    end
-end)
-local function applyFPSBoost()
-    if not S.fpsBoost then return end
-    pcall(function() LT.GlobalShadows=false end)
-    pcall(function() LT.FogEnd=100000 LT.FogStart=100000 end)
-    for _,e in ipairs(fpsAtmo)do
-        if e.obj and e.obj.Parent then pcall(function() e.obj.Density=0 end) end
-    end
-    if S.fpsLevel>=2 then
-        for _,e in ipairs(fpsPostFX)do
-            if e.fx and e.fx.Parent and e.fx.Name~="GT_CC" then
-                pcall(function() e.fx.Enabled=false end)
-            end
-        end
-        pcall(function() LT.EnvironmentDiffuseScale=0 LT.EnvironmentSpecularScale=0 end)
-        pcall(function()
-            local ter=WS:FindFirstChildOfClass("Terrain")
-            if ter then
-                ter.WaterWaveSize=0
-                ter.WaterReflectance=0
-                ter.WaterTransparency=1
-            end
-        end)
-    end
-end
-local function restoreFPS()
-    pcall(function() LT.GlobalShadows=fpsOrig.shadow end)
-    pcall(function() LT.FogEnd=fpsOrig.fogEnd LT.FogStart=fpsOrig.fogStart end)
-    pcall(function() LT.EnvironmentDiffuseScale=fpsOrig.envDiff LT.EnvironmentSpecularScale=fpsOrig.envSpec end)
-    for _,e in ipairs(fpsAtmo)do
-        if e.obj and e.obj.Parent then pcall(function() e.obj.Density=e.den end) end
-    end
-    for _,e in ipairs(fpsPostFX)do
-        if e.fx and e.fx.Parent then pcall(function() e.fx.Enabled=e.en end) end
-    end
-    pcall(function()
-        local ter=WS:FindFirstChildOfClass("Terrain")
-        if ter then
-            if waterOrig.wave then ter.WaterWaveSize=waterOrig.wave end
-            if waterOrig.reflect then ter.WaterReflectance=waterOrig.reflect end
-            if waterOrig.trans then ter.WaterTransparency=waterOrig.trans end
-        end
-    end)
-end
-spawn(function()
-    while sg.Parent do
-        if S.fpsBoost then pcall(applyFPSBoost) end
-        task.wait(1)
-    end
-end)
 task.spawn(function()
     local count=0
     for _,p in ipairs(Players:GetPlayers())do
@@ -385,7 +313,7 @@ WS.DescendantRemoving:Connect(function(d)if espO[d]then rmE(d)end end)
 LP.CharacterAdded:Connect(function()for m,_ in pairs(espO)do if isSelf(m)then rmE(m)end end end)
 local CF="gt_config_v2.json"
 local function saveC()local ok,er=pcall(function()local d=HS:JSONEncode(S)if writefile then writefile(CF,d)else error("no writefile")end end)return ok,er end
-local function loadC()local ok,er=pcall(function()if not readfile then error("no readfile")end if not isfile or not isfile(CF)then error("no config")end local d=readfile(CF)local p=HS:JSONDecode(d)for k,v in pairs(p)do if S[k]~=nil then S[k]=v end end for _,fn in ipairs(tRefs)do pcall(fn)end for _,fn in ipairs(sRefs)do pcall(fn)end for _,fn in ipairs(gRefs)do pcall(fn)end if S.fullbright then pcall(setFB,true)end if S.fly then pcall(sFly)end if S.esp then pcall(rfE)end if S.fpsBoost then pcall(applyFPSBoost)end if S.bhop then pcall(installBhop)end pcall(function() applyOpacity(S.uiOpacity) end) if S.entList then if not entF then entF=Instance.new("Frame")entF.Size=UDim2.new(1,0,0,250)entF.BackgroundColor3=C.deep entF.BackgroundTransparency=0.4 entF.BorderSizePixel=0 entF.Parent=entListCard cnr(entF,8)end entF.Visible=true pcall(rEL)end end)return ok,er end
+local function loadC()local ok,er=pcall(function()if not readfile then error("no readfile")end if not isfile or not isfile(CF)then error("no config")end local d=readfile(CF)local p=HS:JSONDecode(d)for k,v in pairs(p)do if S[k]~=nil then S[k]=v end end for _,fn in ipairs(tRefs)do pcall(fn)end for _,fn in ipairs(sRefs)do pcall(fn)end for _,fn in ipairs(gRefs)do pcall(fn)end if S.fullbright then pcall(setFB,true)end if S.fly then pcall(sFly)end if S.esp then pcall(rfE)end if S.bhop then pcall(installBhop)end pcall(function() applyOpacity(S.uiOpacity) end) if S.entList then if not entF then entF=Instance.new("Frame")entF.Size=UDim2.new(1,0,0,250)entF.BackgroundColor3=C.deep entF.BackgroundTransparency=0.4 entF.BorderSizePixel=0 entF.Parent=entListCard cnr(entF,8)end entF.Visible=true pcall(rEL)end end)return ok,er end
 local mC=mkCard(tMv)mkSec(mC,"飞行控制",C.cy)
 mkTog(mC,"飞天模式",function()return S.fly end,function(v)S.fly=v if v then sFly()else stFly()end end,C.cy)
 mkSld(mC,"飞行速度",function()return S.flySpeed end,function(v)S.flySpeed=v end,10,300,5,C.cy)
@@ -458,9 +386,6 @@ mkSld(aiC,"视野阈值°",function()return S.aggroFov end,function(v)S.aggroFov
 local hdC=mkCard(tSt)mkSec(hdC,"界面HUD",C.gold)
 mkTog(hdC,"FPS/Ping监控",function()return S.showFps end,function(v)S.showFps=v end,C.gold)
 mkSld(hdC,"菜单不透明度%",function()return S.uiOpacity end,function(v)S.uiOpacity=v applyOpacity(v)end,20,100,5,C.gold)
-local fxC=mkCard(tSt)mkSec(fxC,"性能优化",C.gold)
-mkTog(fxC,"启用FPS优化",function()return S.fpsBoost end,function(v)S.fpsBoost=v if v then applyFPSBoost()else restoreFPS()end end,C.gold)
-mkSeg(fxC,{"轻度","中度"},2,function(i)S.fpsLevel=i if S.fpsBoost then applyFPSBoost()end end,C.gold,function()return S.fpsLevel end)
 local acC=mkCard(tSt)mkSec(acC,"反检测",C.gold)
 mkTog(acC,"GUI保护",function()return S.protectGUI end,function(v)S.protectGUI=v end,C.gold)
 mkAct(acC,"提示：移速/飞行已过检测",function()toast("移速走速度补偿，飞行走物理速度",true)end,C.gold)
@@ -468,10 +393,9 @@ mkSec(hdC,"配置存档",C.gold)
 mkAct(hdC,"保存当前配置",function()local ok=saveC()if ok then toast("配置已保存",true)else toast("保存失败",false)end end,C.gold)
 mkAct(hdC,"加载上次配置",function()local ok=loadC()if ok then toast("配置已加载",true)else toast("加载失败",false)end end,C.gold)
 closeB.MouseButton1Click:Connect(function()S.fly=false S.speedOn=false S.jumpOn=false S.noclip=false S.aim=false S.esp=false S.radar=false S.entList=false S.hurtFlash=false S.aimLaser=false S.lowHPWarn=false S.fullbright=false
-S.aggro=false S.fpsBoost=false S.bhop=false
+S.aggro=false S.bhop=false
 pcall(removeBhop)
 pcall(clrAggro)
-pcall(restoreFPS)
 pcall(stFly)pcall(setFB,false)ll.Visible=false lt2.Visible=false WS.Gravity=origG for m,_ in pairs(espO)do pcall(rmE,m)end pcall(function()RS:UnbindFromRenderStep("GT_Aim")end)local ch=LP.Character if ch then local h=ch:FindFirstChildOfClass("Humanoid")if h then if oJP then h.JumpPower=oJP end if oJH then h.JumpHeight=oJH end if oUJP~=nil then h.UseJumpPower=oUJP end h.WalkSpeed=BASE_WS end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end sg:Destroy()tg:Destroy()end)
 LP.CharacterAdded:Connect(function()wait(0.5)if S.esp then rfE()end end)
 spawn(function()
