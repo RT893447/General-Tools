@@ -1,4 +1,5 @@
 task.wait(3)
+pcall(function() if writefile and isfile and isfile("gt_config.json")then delfile("gt_config.json") end end)
 local Players=game:GetService("Players")local UIS=game:GetService("UserInputService")local RS=game:GetService("RunService")local TS=game:GetService("TweenService")local WS=game:GetService("Workspace")local HS=game:GetService("HttpService")local Stats=game:GetService("Stats")local LT=game:GetService("Lighting")
 local LP=Players.LocalPlayer local Cam=WS.CurrentCamera
 local S={fly=false,flySpeed=60,flyUp=false,flyDown=false,speedOn=false,walk=16,jumpOn=false,jp=50,noclip=false,aim=false,aimPart="Head",aimFov=90,aimDist=500,aimSmooth=60,aimTeam=true,aimCircle=true,aimTargetMode="all",aimPriority="crosshair",aimWall=false,aimStick=30,aimHL=false,aimLaser=false,esp=false,espHL=false,espBox=false,espSkel=false,espTracer=false,espName=false,espDist=false,espHPNum=false,espTool=false,espMax=300,espTarget="all",espYOff=0,espTeamColor=true,radar=false,radarRange=200,radarSize=140,entList=false,hurtFlash=false,showFps=true,lowHPWarn=false,lowHPThreshold=30,fullbright=false}
@@ -71,14 +72,39 @@ spawn(function()while sg.Parent do local ch=LP.Character local h=ch and ch:FindF
 local ll=Instance.new("Frame")ll.AnchorPoint=Vector2.new(0.5,0.5)ll.BackgroundColor3=C.cy ll.BackgroundTransparency=0.25 ll.BorderSizePixel=0 ll.ZIndex=999950 ll.Active=false ll.Visible=false ll.Parent=sg
 local lt2=Instance.new("Frame")lt2.AnchorPoint=Vector2.new(0.5,0.5)lt2.Size=UDim2.new(0,8,0,8)lt2.BackgroundColor3=C.cy lt2.BackgroundTransparency=0.2 lt2.BorderSizePixel=0 lt2.ZIndex=999951 lt2.Active=false lt2.Visible=false lt2.Parent=sg cnr(lt2,4)
 RS.RenderStepped:Connect(function()if not S.aim or not S.aimLaser or not aimT or not aimT.Parent then ll.Visible=false lt2.Visible=false return end local c=WS.CurrentCamera if not c then ll.Visible=false lt2.Visible=false return end local th=aimT:FindFirstChild("HumanoidRootPart")if not th then ll.Visible=false lt2.Visible=false return end local vs=c.ViewportSize local o=Vector2.new(vs.X/2,vs.Y/2)local sp,onS=c:WorldToViewportPoint(th.Position)if not onS or sp.Z<=0 then ll.Visible=false lt2.Visible=false return end local tp=Vector2.new(sp.X,sp.Y)local d=tp-o local L=d.Magnitude if L<2 then ll.Visible=false lt2.Visible=false return end local a=math.deg(math.atan2(d.Y,d.X))local m=(o+tp)/2 ll.Visible=true ll.Position=UDim2.fromOffset(m.X,m.Y)ll.Size=UDim2.fromOffset(L,2)ll.Rotation=a lt2.Visible=true lt2.Position=UDim2.fromOffset(tp.X,tp.Y)end)
--- ===== 菜单 CanvasGroup 包裹 =====
-local panCG=Instance.new("CanvasGroup")
-panCG.Size=UDim2.new(1,0,1,0)
-panCG.BackgroundTransparency=1
-panCG.BorderSizePixel=0
-panCG.GroupTransparency=1-S.uiOpacity/100
-panCG.Parent=sg
-local pan=Instance.new("Frame")pan.Size=UDim2.new(0,pw,0,ph)pan.Position=UDim2.new(0.5,-pw/2,0.5,-ph/2)pan.BackgroundColor3=C.bg pan.BorderSizePixel=0 pan.Active=true pan.ClipsDescendants=true pan.Visible=false pan.Parent=panCG cnr(pan,18)stk(pan,Color3.fromRGB(70,100,160),1.5)grd(pan,ColorSequence.new({ColorSequenceKeypoint.new(0,C.bg),ColorSequenceKeypoint.new(1,C.deep)}),90)
+local pan=Instance.new("Frame")pan.Size=UDim2.new(0,pw,0,ph)pan.Position=UDim2.new(0.5,-pw/2,0.5,-ph/2)pan.BackgroundColor3=C.bg pan.BorderSizePixel=0 pan.Active=true pan.ClipsDescendants=true pan.Visible=false pan.Parent=sg cnr(pan,18)stk(pan,Color3.fromRGB(70,100,160),1.5)grd(pan,ColorSequence.new({ColorSequenceKeypoint.new(0,C.bg),ColorSequenceKeypoint.new(1,C.deep)}),90)
+local uiOrig={}
+local function collectUI()
+    uiOrig={}
+    local all={pan}
+    for _,d in ipairs(pan:GetDescendants())do table.insert(all,d) end
+    for _,d in ipairs(all)do
+        if d:IsA("GuiObject")then
+            local r={bg=d.BackgroundTransparency}
+            if d:IsA("TextLabel")or d:IsA("TextButton")then
+                r.tx=d.TextTransparency
+                r.ts=d.TextStrokeTransparency
+            end
+            if d:IsA("ImageLabel")or d:IsA("ImageButton")then
+                r.im=d.ImageTransparency
+            end
+            uiOrig[d]=r
+        end
+    end
+end
+local function applyOpacity(v)
+    v=math.clamp(tonumber(v)or 100,20,100)
+    if not next(uiOrig) then collectUI() end
+    local k=v/100
+    for d,r in pairs(uiOrig)do
+        if d and d.Parent then
+            pcall(function() d.BackgroundTransparency=1-(1-r.bg)*k end)
+            if r.tx then pcall(function() d.TextTransparency=1-(1-r.tx)*k end)end
+            if r.ts then pcall(function() d.TextStrokeTransparency=1-(1-r.ts)*k end)end
+            if r.im then pcall(function() d.ImageTransparency=1-(1-r.im)*k end)end
+        end
+    end
+end
 local tb=Instance.new("Frame")tb.Size=UDim2.new(1,0,0,60)tb.BackgroundColor3=C.dark tb.BorderSizePixel=0 tb.Parent=pan cnr(tb,18)
 local tfx=Instance.new("Frame")tfx.Size=UDim2.new(1,0,0.5,0)tfx.Position=UDim2.new(0,0,0.5,0)tfx.BackgroundColor3=C.dark tfx.BorderSizePixel=0 tfx.Parent=tb
 local gs=Instance.new("Frame")gs.Size=UDim2.new(1,0,0,3)gs.BackgroundColor3=Color3.new(1,1,1)gs.BorderSizePixel=0 gs.ZIndex=5 gs.Parent=tb cnr(gs,2)
@@ -115,7 +141,6 @@ UIS.InputChanged:Connect(function(i)if pD and(i.UserInputType==Enum.UserInputTyp
 UIS.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then pD=false end end)
 local cld=false
 minB.MouseButton1Click:Connect(function()cld=not cld if cld then tBar.Visible=false cA.Visible=false TS:Create(pan,TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,60)}):Play()minB.Text="+"else tBar.Visible=true cA.Visible=true TS:Create(pan,TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,ph)}):Play()minB.Text="−"end end)
--- ===== FPS 优化（轻重度真区分） =====
 local fpsOrig={shadow=LT.GlobalShadows,fogEnd=LT.FogEnd,fogStart=LT.FogStart,envDiff=LT.EnvironmentDiffuseScale,envSpec=LT.EnvironmentSpecularScale}
 local fpsPostFX={}
 for _,v in ipairs(LT:GetChildren())do
@@ -126,7 +151,7 @@ end
 local fpsAtmo={}
 for _,v in ipairs(LT:GetChildren())do
     if v:IsA("Atmosphere")then
-        table.insert(fpsAtmo,{obj=v,en=v.Enabled})
+        table.insert(fpsAtmo,{obj=v,den=v.Density})
     end
 end
 local waterOrig={}
@@ -140,14 +165,12 @@ pcall(function()
 end)
 local function applyFPSBoost()
     if not S.fpsBoost then return end
-    -- 轻度：关阴影 + 关雾 + 关大气
     pcall(function() LT.GlobalShadows=false end)
     pcall(function() LT.FogEnd=100000 LT.FogStart=100000 end)
     for _,e in ipairs(fpsAtmo)do
-        if e.obj and e.obj.Parent then pcall(function() e.obj.Enabled=false end) end
+        if e.obj and e.obj.Parent then pcall(function() e.obj.Density=0 end) end
     end
     if S.fpsLevel>=2 then
-        -- 中度：再关后处理 + 环境光照 + 水面效果
         for _,e in ipairs(fpsPostFX)do
             if e.fx and e.fx.Parent and e.fx.Name~="GT_CC" then
                 pcall(function() e.fx.Enabled=false end)
@@ -169,7 +192,7 @@ local function restoreFPS()
     pcall(function() LT.FogEnd=fpsOrig.fogEnd LT.FogStart=fpsOrig.fogStart end)
     pcall(function() LT.EnvironmentDiffuseScale=fpsOrig.envDiff LT.EnvironmentSpecularScale=fpsOrig.envSpec end)
     for _,e in ipairs(fpsAtmo)do
-        if e.obj and e.obj.Parent then pcall(function() e.obj.Enabled=e.en end) end
+        if e.obj and e.obj.Parent then pcall(function() e.obj.Density=e.den end) end
     end
     for _,e in ipairs(fpsPostFX)do
         if e.fx and e.fx.Parent then pcall(function() e.fx.Enabled=e.en end) end
@@ -189,7 +212,6 @@ spawn(function()
         task.wait(1)
     end
 end)
--- ===== Humanoid 扫描 =====
 task.spawn(function()
     local count=0
     for _,p in ipairs(Players:GetPlayers())do
@@ -223,7 +245,6 @@ local function gAP(m)if S.aimPart=="Head"then return m:FindFirstChild("Head")or 
 local function hasLOS(tp)local c=WS.CurrentCamera if not c then return true end local o=c.CFrame.Position local d=tp.Position-o if d.Magnitude<0.1 then return true end local rp=RaycastParams.new()pcall(function()rp.FilterType=Enum.RaycastFilterType.Exclude end)local fl={}if LP.Character then table.insert(fl,LP.Character)end if tp.Parent then table.insert(fl,tp.Parent)end rp.FilterDescendantsInstances=fl return WS:Raycast(o,d,rp)==nil end
 local function pTF(m)local p=getP(m)if S.aimTargetMode=="player"then return p~=nil end if S.aimTargetMode=="npc"then return p==nil end return true end
 local function fBT()local c=WS.CurrentCamera local ch=LP.Character local hr=ch and ch:FindFirstChild("HumanoidRootPart")if not c or not hr then return nil end local mt=LP.Team local cp=c.CFrame.Position local lv=c.CFrame.LookVector local best=nil local bs=nil local sb=1-math.clamp(S.aimStick/100,0,0.9)if S.aimPriority=="crosshair"then bs=S.aimFov/2 elseif S.aimPriority=="distance"then bs=S.aimDist elseif S.aimPriority=="health"then bs=math.huge else bs=S.aimDist end for h in pairs(humans)do if h and h.Parent and h.Health>0 then local m=h.Parent if m and m:IsA("Model")and not isSelf(m)and pTF(m)then local t=m:FindFirstChild("HumanoidRootPart")if t then local ds=(t.Position-hr.Position).Magnitude if ds<=S.aimDist then local sk=false if S.aimTeam and mt then local p=getP(m)if p and p.Team and p.Team==mt then sk=true end end if not sk then local vs=true if S.aimWall then vs=hasLOS(gAP(m)or t)end if vs then local pk=false local ed=ds if m==aimT then ed=ds*sb end if S.aimPriority=="crosshair"then local tt=t.Position-cp if tt.Magnitude>0.1 then tt=tt.Unit local an=math.deg(math.acos(math.clamp(lv:Dot(tt),-1,1)))if an<=S.aimFov/2 and an<bs then bs=an pk=true end end elseif S.aimPriority=="health"then if h.Health<bs then bs=h.Health pk=true end else if ed<bs then bs=ed pk=true end end if pk then best=m end end end end end end end end return best end
--- ===== 飞行（原版 + 方向修正） =====
 local function sFly()local ch=LP.Character local hr=ch and ch:FindFirstChild("HumanoidRootPart")if not hr then return end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=false end end flyG=Instance.new("BodyGyro")flyG.P=9e4 flyG.MaxTorque=Vector3.new(9e9,9e9,9e9)flyG.CFrame=hr.CFrame flyG.Parent=hr flyV=Instance.new("BodyVelocity")flyV.MaxForce=Vector3.new(9e9,9e9,9e9)flyV.Velocity=Vector3.zero flyV.Parent=hr flyC=RS.RenderStepped:Connect(function()if not S.fly then return end local c=LP.Character local mh=c and c:FindFirstChild("HumanoidRootPart")local h=c and c:FindFirstChildOfClass("Humanoid")if not mh or not flyG or not flyV then return end local cm=WS.CurrentCamera flyG.CFrame=cm.CFrame local mv=Vector3.zero if h and h.MoveDirection.Magnitude>0.05 then local md=h.MoveDirection local cl=cm.CFrame.LookVector local fl=Vector3.new(cl.X,0,cl.Z)if fl.Magnitude>0.01 then fl=fl.Unit local fr=Vector3.new(-fl.Z,0,fl.X)local fw=md:Dot(fl)local rt=md:Dot(fr)mv=cm.CFrame.LookVector*fw+cm.CFrame.RightVector*rt end end if S.flyUp then mv=mv+cm.CFrame.UpVector end if S.flyDown then mv=mv-cm.CFrame.UpVector end if mv.Magnitude>0.05 then flyV.Velocity=mv.Unit*S.flySpeed else flyV.Velocity=Vector3.zero end end)end
 local function stFly()if flyC then flyC:Disconnect()flyC=nil end if flyG then flyG:Destroy()flyG=nil end if flyV then flyV:Destroy()flyV=nil end local ch=LP.Character if ch then for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end end
 RS:BindToRenderStep("GT_Aim",201,function()if not S.aim then aimT=nil return end local c=WS.CurrentCamera if not c then return end if aimT then local h=aimT:FindFirstChildOfClass("Humanoid")if not h or h.Health<=0 or not aimT.Parent or isSelf(aimT)then aimT=nil end end if not(S.aimPriority=="lock"and aimT)then aimT=fBT()end if not aimT then return end local tp=gAP(aimT)if not tp then return end local tc=CFrame.new(c.CFrame.Position,tp.Position)if S.aimSmooth>=100 then c.CFrame=tc else c.CFrame=c.CFrame:Lerp(tc,math.clamp(S.aimSmooth/100,0.05,1))end end)
@@ -328,7 +349,6 @@ local function hookH(h)
     h:GetPropertyChangedSignal("JumpHeight"):Connect(function()if S.jumpOn then local t=S.jp/7.85 if h.JumpHeight~=t then h.JumpHeight=t end end end)
     h:GetPropertyChangedSignal("UseJumpPower"):Connect(function()if S.jumpOn and h.UseJumpPower~=true then h.UseJumpPower=true end end)
 end
--- ===== 兔子跳 =====
 local function removeBhop()
     if bhopConn then pcall(function() bhopConn:Disconnect() end) bhopConn=nil end
 end
@@ -363,9 +383,9 @@ RS.RenderStepped:Connect(function()if not S.esp then return end local c=WS.Curre
 WS.DescendantAdded:Connect(function(d)if not S.esp or not d:IsA("Humanoid")then return end local m=d.Parent if not m or not m:IsA("Model")then return end wait(0.3)if S.esp and m.Parent and not isSelf(m)and shE(m)then addE(m)end end)
 WS.DescendantRemoving:Connect(function(d)if espO[d]then rmE(d)end end)
 LP.CharacterAdded:Connect(function()for m,_ in pairs(espO)do if isSelf(m)then rmE(m)end end end)
-local CF="gt_config.json"
+local CF="gt_config_v2.json"
 local function saveC()local ok,er=pcall(function()local d=HS:JSONEncode(S)if writefile then writefile(CF,d)else error("no writefile")end end)return ok,er end
-local function loadC()local ok,er=pcall(function()if not readfile then error("no readfile")end if not isfile or not isfile(CF)then error("no config")end local d=readfile(CF)local p=HS:JSONDecode(d)for k,v in pairs(p)do if S[k]~=nil then S[k]=v end end for _,fn in ipairs(tRefs)do pcall(fn)end for _,fn in ipairs(sRefs)do pcall(fn)end for _,fn in ipairs(gRefs)do pcall(fn)end if S.fullbright then pcall(setFB,true)end if S.fly then pcall(sFly)end if S.esp then pcall(rfE)end if S.fpsBoost then pcall(applyFPSBoost)end if S.bhop then pcall(installBhop)end pcall(function() panCG.GroupTransparency=1-S.uiOpacity/100 end) if S.entList then if not entF then entF=Instance.new("Frame")entF.Size=UDim2.new(1,0,0,250)entF.BackgroundColor3=C.deep entF.BackgroundTransparency=0.4 entF.BorderSizePixel=0 entF.Parent=entListCard cnr(entF,8)end entF.Visible=true pcall(rEL)end end)return ok,er end
+local function loadC()local ok,er=pcall(function()if not readfile then error("no readfile")end if not isfile or not isfile(CF)then error("no config")end local d=readfile(CF)local p=HS:JSONDecode(d)for k,v in pairs(p)do if S[k]~=nil then S[k]=v end end for _,fn in ipairs(tRefs)do pcall(fn)end for _,fn in ipairs(sRefs)do pcall(fn)end for _,fn in ipairs(gRefs)do pcall(fn)end if S.fullbright then pcall(setFB,true)end if S.fly then pcall(sFly)end if S.esp then pcall(rfE)end if S.fpsBoost then pcall(applyFPSBoost)end if S.bhop then pcall(installBhop)end pcall(function() applyOpacity(S.uiOpacity) end) if S.entList then if not entF then entF=Instance.new("Frame")entF.Size=UDim2.new(1,0,0,250)entF.BackgroundColor3=C.deep entF.BackgroundTransparency=0.4 entF.BorderSizePixel=0 entF.Parent=entListCard cnr(entF,8)end entF.Visible=true pcall(rEL)end end)return ok,er end
 local mC=mkCard(tMv)mkSec(mC,"飞行控制",C.cy)
 mkTog(mC,"飞天模式",function()return S.fly end,function(v)S.fly=v if v then sFly()else stFly()end end,C.cy)
 mkSld(mC,"飞行速度",function()return S.flySpeed end,function(v)S.flySpeed=v end,10,300,5,C.cy)
@@ -437,7 +457,7 @@ mkSld(aiC,"检测范围",function()return S.aggroRange end,function(v)S.aggroRan
 mkSld(aiC,"视野阈值°",function()return S.aggroFov end,function(v)S.aggroFov=v end,10,90,5,C.rd)
 local hdC=mkCard(tSt)mkSec(hdC,"界面HUD",C.gold)
 mkTog(hdC,"FPS/Ping监控",function()return S.showFps end,function(v)S.showFps=v end,C.gold)
-mkSld(hdC,"菜单不透明度%",function()return S.uiOpacity end,function(v)S.uiOpacity=v panCG.GroupTransparency=1-v/100 end,0,100,5,C.gold)
+mkSld(hdC,"菜单不透明度%",function()return S.uiOpacity end,function(v)S.uiOpacity=v applyOpacity(v)end,20,100,5,C.gold)
 local fxC=mkCard(tSt)mkSec(fxC,"性能优化",C.gold)
 mkTog(fxC,"启用FPS优化",function()return S.fpsBoost end,function(v)S.fpsBoost=v if v then applyFPSBoost()else restoreFPS()end end,C.gold)
 mkSeg(fxC,{"轻度","中度"},2,function(i)S.fpsLevel=i if S.fpsBoost then applyFPSBoost()end end,C.gold,function()return S.fpsLevel end)
@@ -454,4 +474,45 @@ pcall(clrAggro)
 pcall(restoreFPS)
 pcall(stFly)pcall(setFB,false)ll.Visible=false lt2.Visible=false WS.Gravity=origG for m,_ in pairs(espO)do pcall(rmE,m)end pcall(function()RS:UnbindFromRenderStep("GT_Aim")end)local ch=LP.Character if ch then local h=ch:FindFirstChildOfClass("Humanoid")if h then if oJP then h.JumpPower=oJP end if oJH then h.JumpHeight=oJH end if oUJP~=nil then h.UseJumpPower=oUJP end h.WalkSpeed=BASE_WS end for _,v in pairs(ch:GetDescendants())do if v:IsA("BasePart")then v.CanCollide=true end end end sg:Destroy()tg:Destroy()end)
 LP.CharacterAdded:Connect(function()wait(0.5)if S.esp then rfE()end end)
-spawn(function()wait(0.1)TS:Create(cg,TweenInfo.new(0.7,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,520,0,520)}):Play()TS:Create(cg,TweenInfo.new(0.7),{BackgroundTransparency=0.85}):Play()TS:Create(bg,TweenInfo.new(1.0,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,900,0,900)}):Play()TS:Create(bg,TweenInfo.new(1.0),{BackgroundTransparency=0.9}):Play()TS:Create(ci,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextTransparency=0,TextStrokeTransparency=0}):Play()TS:Create(ro,TweenInfo.new(0.6,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,200,0,200)}):Play()TS:Create(ri,TweenInfo.new(0.8,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,140,0,140)}):Play()for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=0}):Play()end local sa,so,ps=0,0,tick()spawn(function()while io.Parent and ro.Parent and not iDone do sa=sa+3 so=so+5 ro.Rotation=sa ri.Rotation=-sa*1.4 for i,d in ipairs(sd)do local an=math.rad(so+(i-1)*90)local rd=95 d.Position=UDim2.new(0.5,math.cos(an)*rd,0.5,-20+math.sin(an)*rd)end local el=tick()-ps ci.TextSize=80*(1+math.sin(el*4)*0.08)wait(0.016)end end)wait(0.5)for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.75,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=e.basePos,Rotation=0,TextTransparency=0,TextStrokeTransparency=0}):Play()wait(0.09)end wait(1.0)local sw=Instance.new("Frame")sw.Size=UDim2.new(0,100,0,140)sw.AnchorPoint=Vector2.new(0.5,0.5)sw.Position=UDim2.new(0,-150,0.5,60)sw.BackgroundColor3=Color3.new(1,1,1)sw.BackgroundTransparency=0.15 sw.BorderSizePixel=0 sw.ZIndex=10 sw.Parent=io cnr(sw,40)local swg=Instance.new("UIGradient")swg.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0),NumberSequenceKeypoint.new(1,1)})swg.Parent=sw TS:Create(sw,TweenInfo.new(0.9,Enum.EasingStyle.Quad,Enum.EasingDirection.InOut),{Position=UDim2.new(1,150,0.5,60)}):Play()wait(0.45)for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.15),{TextSize=e.label.TextSize+14,TextColor3=Color3.new(1,1,1)}):Play()wait(0.05)end wait(0.35)for _,e in ipairs(tl)do local os2=e.label.TextSize TS:Create(e.label,TweenInfo.new(0.3,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextSize=os2,TextColor3=Color3.fromRGB(230,250,255)}):Play()end wait(0.6)sw:Destroy()iDone=true for _,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.4),{TextTransparency=1,TextStrokeTransparency=1}):Play()end TS:Create(ci,TweenInfo.new(0.4),{TextTransparency=1}):Play()TS:Create(ros,TweenInfo.new(0.4),{Transparency=1}):Play()TS:Create(ris,TweenInfo.new(0.4),{Transparency=1}):Play()TS:Create(cg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()TS:Create(bg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()end TS:Create(io,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()wait(0.5)pan.Visible=true pan.Size=UDim2.new(0,0,0,0)pan.Position=UDim2.new(0.5,0,0.5,0)TS:Create(pan,TweenInfo.new(0.55,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,ph),Position=UDim2.new(0.5,-pw/2,0.5,-ph/2)}):Play()wait(0.6)io:Destroy()end)
+spawn(function()
+    wait(0.1)
+    TS:Create(cg,TweenInfo.new(0.7,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,520,0,520)}):Play()
+    TS:Create(cg,TweenInfo.new(0.7),{BackgroundTransparency=0.85}):Play()
+    TS:Create(bg,TweenInfo.new(1.0,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,900,0,900)}):Play()
+    TS:Create(bg,TweenInfo.new(1.0),{BackgroundTransparency=0.9}):Play()
+    TS:Create(ci,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextTransparency=0,TextStrokeTransparency=0}):Play()
+    TS:Create(ro,TweenInfo.new(0.6,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,200,0,200)}):Play()
+    TS:Create(ri,TweenInfo.new(0.8,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,140,0,140)}):Play()
+    for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=0}):Play()end
+    local sa,so,ps=0,0,tick()
+    spawn(function()while io.Parent and ro.Parent and not iDone do sa=sa+3 so=so+5 ro.Rotation=sa ri.Rotation=-sa*1.4 for i,d in ipairs(sd)do local an=math.rad(so+(i-1)*90)local rd=95 d.Position=UDim2.new(0.5,math.cos(an)*rd,0.5,-20+math.sin(an)*rd)end local el=tick()-ps ci.TextSize=80*(1+math.sin(el*4)*0.08)wait(0.016)end end)
+    wait(0.5)
+    for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.75,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=e.basePos,Rotation=0,TextTransparency=0,TextStrokeTransparency=0}):Play()wait(0.09)end
+    wait(1.0)
+    local sw=Instance.new("Frame")sw.Size=UDim2.new(0,100,0,140)sw.AnchorPoint=Vector2.new(0.5,0.5)sw.Position=UDim2.new(0,-150,0.5,60)sw.BackgroundColor3=Color3.new(1,1,1)sw.BackgroundTransparency=0.15 sw.BorderSizePixel=0 sw.ZIndex=10 sw.Parent=io cnr(sw,40)
+    local swg=Instance.new("UIGradient")swg.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0),NumberSequenceKeypoint.new(1,1)})swg.Parent=sw
+    TS:Create(sw,TweenInfo.new(0.9,Enum.EasingStyle.Quad,Enum.EasingDirection.InOut),{Position=UDim2.new(1,150,0.5,60)}):Play()
+    wait(0.45)
+    for i,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.15),{TextSize=e.label.TextSize+14,TextColor3=Color3.new(1,1,1)}):Play()wait(0.05)end
+    wait(0.35)
+    for _,e in ipairs(tl)do local os2=e.label.TextSize TS:Create(e.label,TweenInfo.new(0.3,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{TextSize=os2,TextColor3=Color3.fromRGB(230,250,255)}):Play()end
+    wait(0.6)
+    sw:Destroy()iDone=true
+    for _,e in ipairs(tl)do TS:Create(e.label,TweenInfo.new(0.4),{TextTransparency=1,TextStrokeTransparency=1}):Play()end
+    TS:Create(ci,TweenInfo.new(0.4),{TextTransparency=1}):Play()
+    TS:Create(ros,TweenInfo.new(0.4),{Transparency=1}):Play()
+    TS:Create(ris,TweenInfo.new(0.4),{Transparency=1}):Play()
+    TS:Create(cg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()
+    TS:Create(bg,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()
+    for _,d in ipairs(sd)do TS:Create(d,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()end
+    TS:Create(io,TweenInfo.new(0.4),{BackgroundTransparency=1}):Play()
+    wait(0.5)
+    collectUI()
+    applyOpacity(S.uiOpacity)
+    pan.Visible=true
+    pan.Size=UDim2.new(0,0,0,0)
+    pan.Position=UDim2.new(0.5,0,0.5,0)
+    TS:Create(pan,TweenInfo.new(0.55,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.new(0,pw,0,ph),Position=UDim2.new(0.5,-pw/2,0.5,-ph/2)}):Play()
+    wait(0.6)
+    io:Destroy()
+end)
